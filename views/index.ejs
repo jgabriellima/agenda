@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Template &middot; Bootstrap</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="">
+        <meta name="author" content="">
+
+        <!-- Le styles -->
+        <link href="css/bootstrap.css" rel="stylesheet">
+        <style type="text/css">
+            body {
+                padding-top: 20px;
+                padding-bottom: 40px;
+            }
+
+            /* Custom container */
+            .container-narrow {
+                margin: 0 auto;
+                max-width: 700px;
+            }
+            .container-narrow > hr {
+                margin: 30px 0;
+            }
+
+            /* Main marketing message and sign up button */
+            .jumbotron {
+                margin: 60px 0;
+                text-align: center;
+            }
+            .jumbotron h1 {
+                font-size: 72px;
+                line-height: 1;
+            }
+            .jumbotron .btn {
+                font-size: 21px;
+                padding: 14px 24px;
+            }
+
+            /* Supporting marketing content */
+            .marketing {
+                margin: 60px 0;
+            }
+            .marketing p + h4 {
+                margin-top: 28px;
+            }
+        </style>
+        <link href="/css/bootstrap-responsive.css" rel="stylesheet">
+
+        <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+        <!--[if lt IE 9]>
+          <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+    </head>
+    <body>
+        <div class="container-narrow">
+            <div class="masthead">
+                <ul class="nav nav-pills pull-right">
+                    <li class="active"><a href="javascript:;" view="list" onclick="Agenda.go($(this));">Home</a></li>
+                    <li><a href="javascript:;" view="form" onclick="Agenda.go($(this));">Novo</a></li>
+                </ul>
+                <h3 class="muted">AgendaJS</h3>
+            </div>
+            <hr>
+            <div id="list">
+                <h2>Contatos</h2>
+                <table id="lista" class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nome</th>
+                            <th>E-mail</th>
+                            <th>Telefone</th>
+                            <th>Celular</th>
+                            <th>WebSite</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                    </tbody>
+                </table>
+            </div>
+            <div id="form" style="display: none">
+                <h2>Inserir Novo Contato</h2>
+                <form onsubmit="Agenda.inserir(event)">
+                    <div class="row-fluid">
+                        <div class="span6">
+                            Nome:
+                            <input type="text" required id="nome" style="width: 90%"/>
+                        </div>
+                        <div class="span4">
+                            E-mail
+                            <input type="email" required id="email" style="width: 90%"/>
+                        </div>
+                    </div>
+                    <div class="row-fluid">
+                        <div class="span3">
+                            Telefone:
+                            <input type="tel" id="telefone" style="width: 90%"/>
+                        </div>
+                        <div class="span3">
+                            Celular:
+                            <input type="tel" required id="celular" style="width: 90%"/>
+                        </div>
+                        <div class="span4">
+                            WebSite:
+                            <input type="text" id="website" style="width: 90%"/>
+                        </div>
+                    </div>
+                    <div class="row-fluid">
+                        <button type="submit" class="btn btn-primary">Inserir</button>
+                        <button type="reset" class="btn btn-danger" onclick="Agenda.goview('#form', '#list')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+            <hr>
+            <div class="footer">
+                <p>&copy; Company 2012</p>
+            </div>
+        </div> <!-- /container -->
+
+        <!-- Le javascript ================================================== -->
+        <script  src="js/jquery.min.js"></script>
+        <script  src="js/jquery.dataTables.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            var Agenda = {
+                contatos:new Array(),
+                lista:null,
+                socket: null,
+              
+                init:function(){
+                    if(localStorage.getItem('agenda.contatos')!=null){
+                        Agenda.contatos = JSON.parse(localStorage.getItem('agenda.contatos'));
+                    }
+                    //
+                    Agenda.lista_();
+                    Agenda.updatelocallista();
+                    Agenda.updatelista();
+                    //
+//                    Agenda.socket = io.connect('http://192.168.0.103:3000')
+//                    Agenda.socket = io.connect('http://143.106.196.240:3000')
+//                    Agenda.socket = io.connect('http://localhost:3000');
+                    Agenda.socket = io.connect('http://'+window.location.host);
+                    Agenda.socket.on('updateagenda', function (json) {
+                        Agenda.updatelista();
+                    });
+                },
+                go:function(item){
+                    Agenda.removeActive();
+                    item.parent().addClass('active');
+                    var id = item.attr('view'); 
+                    $("#"+id).show(); 
+                },
+                goview:function(current,next){
+                    Agenda.removeActive();
+                    $(current).hide();
+                    $(next).show();
+                    $('a[view='+next.replace('#','')+']').parent().addClass('active');
+                },
+                removeActive:function(){
+                    $("ul > li").each(function(){
+                        $(this).removeClass('active');
+                        $(this).find('a').each(function(){
+                            var id = $(this).attr('view');
+                            $("#"+id).hide(); 
+                        });
+                    });
+                },
+                inserir:function(e){
+                    try{
+                        var Form = {
+                            idagenda:'',
+                            nome:$("input#nome").val(),
+                            email:$("input#email").val(),
+                            telefone:$("input#telefone").val(),
+                            celular:$("input#celular").val(),
+                            website:$("input#website").val()
+                        }
+                        //neste apenas acrescentara uma nova linha na tabela
+                        //                        Agenda.lista.fnAddData(Form);
+                        Agenda.contatos.push(Form);
+                        Agenda.lista.fnAddData(Form);
+                        //neste ira reconstruir a tabela completa incluindo o novo dado
+                        //                        Agenda.lista_();
+                        localStorage.setItem('agenda.contatos',JSON.stringify(Agenda.contatos));
+                        Agenda.goview('#form', '#list');
+                        $("form").find('input').each(function(){
+                            $(this).val('');
+                        });
+                        $.ajax({
+                            url: "./inserir",
+                            type: "POST",
+                            data: Form,
+                            success: function(data) {
+                                Agenda.updatelista();
+                            }
+                        });
+                    }catch(e){
+                        console.log('-> '+e)
+                    }
+                    e.preventDefault();
+                },
+                show:function(row){
+                    var Contato = Agenda.lista.fnGetData()[row];
+                    $("input#nome").val(Contato.nome);
+                    Agenda.goview("#list", "#form");
+                },
+                updatelista:function(){
+                    $.getJSON('./lista', function(result){
+                        //                        if(result.length>0){
+                        Agenda.contatos = result;
+                        localStorage.setItem('agenda.contatos',JSON.stringify(Agenda.contatos));
+                        Agenda.lista_();
+                        Agenda.updatelocallista();
+                        //                        }
+                    });
+                },
+                updatelocallista:function(){
+                    $.each(Agenda.contatos, function(key,value){
+                        Agenda.lista.fnAddData(value);
+                        //console.log(value);
+                    });  
+                },
+                lista_:function(){
+                    Agenda.lista = $("#lista").dataTable( {
+                        "aaData": [],
+                        "aoColumns": [
+                            { "mData": "idagenda" },
+                            { "mData": "nome" },
+                            { "mData": "email" },
+                            { "mData": "telefone"},
+                            { "mData": "celular"},
+                            { "mData": "website"},
+                            { "mData": null,"fnRender":function(obj){
+                                    var show = '<a href="javascript:;" onclick="Agenda.show('+obj.iDataRow+')" >Edit</a>'
+                                    return show;
+                                }}
+                        ],
+                        "bPaginate":false,
+                        "bLengthChange": false,
+                        "bFilter": false,
+                        "bInfo": true,
+                        "bAutoWidth": false,
+                        "oLanguage": {
+                            "sSearch": "Buscar:",
+                            "sProcessing":"Processando...",
+                            "sLoadingRecords":"Carregando...",
+                            "sLengthMenu":"Mostrando _MENU_ registros",
+                            "sInfoFiltered": "(Filtrado de _MAX_ registros)",
+                            "sInfoEmpty": "Mostrando 0 a 0 de 0 registros",
+                            "sInfo": "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                            "sEmptyTable": "Nenhum registro encontrado",
+                            "sZeroRecords":"Nenhum registro encontrado",
+                            "oPaginate": {
+                                "sFirst": "Primeira",
+                                "sLast": "Última",
+                                "sNext": "Próxima",
+                                "sPrevious": "Anterior"
+                            }
+                        },
+                        "bStateSave": true,
+                        "bDestroy":true
+                    });
+                }
+            };
+            
+            $(document).ready(function(){
+                Agenda.init();
+            });
+        </script>
+
+    </body>
+</html>
