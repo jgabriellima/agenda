@@ -15,7 +15,6 @@ var express = require('express')
 var app = express();
 
 GLOBAL.app = app;
-GLOBAL.mysql = mysql;
 
 app.configure(function(){
     app.set('port', process.env.PORT || 3000);
